@@ -1,8 +1,25 @@
 #include <SoftwareSerial.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1331.h>
+#include <SPI.h>
 
 #define MH_Z19_RX 6
 #define MH_Z19_TX 5
-#define LED 13
+
+#define BLACK 0x0000
+#define BLUE 0x001F
+#define RED 0xF800
+#define GREEN 0x07E0
+#define CYAN 0x07FF
+#define MAGENTA 0xF81F
+#define YELLOW 0xFFE0
+#define WHITE 0xFFFF
+
+#define sclk 13
+#define mosi 11
+#define cs 10
+#define rst 9
+#define dc 8
 
 // command to ask for data
 byte askco2[9] = {0xFF, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79};
@@ -12,22 +29,23 @@ byte max3k[9] = {0xFF, 0x01, 0x99, 0x00, 0x00, 0x00, 0x0B, 0xB8, 0xA3};
 byte max5k[9] = {0xFF, 0x01, 0x99, 0x00, 0x00, 0x00, 0x13, 0x88, 0xCB};
 
 SoftwareSerial co2Serial(MH_Z19_RX, MH_Z19_TX); // define MH-Z19
+Adafruit_SSD1331 display = Adafruit_SSD1331(cs, dc, mosi, sclk, rst);
+
 void setup() {
   Serial.begin(115200);
   delay(500);
   co2Serial.begin(9600);
   delay(500);
-
-  pinMode(LED, OUTPUT);
-  digitalWrite(LED, HIGH);
-
-  delay(500);
   co2Serial.write(max5k, 9);
-
   delay(500);
   co2Serial.write(askco2, 9);
   Serial.println("First ask to co2Serial");
-  
+
+  // display
+  display.begin(); // инициализация дисплея
+  display.fillScreen(BLACK); // заливка черным цветом
+  lcdTestPattern();
+
   readCO2();
   readCO2();
   Serial.println("Heating");
@@ -39,11 +57,26 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   int ppm = readCO2();
+  display.fillScreen(BLACK);
+  display.setCursor(20, 20);
+  display.setTextColor(YELLOW);
+  display.setTextSize(2);
+  display.print(ppm);
+
   Serial.println("===================================================");
   Serial.print("CO2: ");
   Serial.print(ppm);
   Serial.println(" ppm");
   delay(5000);
+}
+
+void lcdTestPattern(void) {
+  uint32_t i, j;
+//  display.drawLine(0, 0, 20, 20, YELLOW);
+  display.setCursor(0, 0);
+  display.setTextColor(YELLOW);
+  display.setTextSize(2);
+  display.print("Heating");
 }
 
 int readCO2() {
