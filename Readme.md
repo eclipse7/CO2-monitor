@@ -1,2 +1,2 @@
-# C02 monitor
-C02 monitor on MH-Z19
+# CO2 monitor
+CO2 monitor on MH-Z19
