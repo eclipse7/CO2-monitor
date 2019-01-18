@@ -54,9 +54,18 @@ void setup() {
   // display
   display.begin(); // инициализация дисплея
   drawLogo();
-
+  
+  // loading bar 
+  display.drawRect(0, 60, 96, 4, YELLOW);
+  
   Serial.println("Heating");
-  delay(120000);
+  // loading bar  
+  int x = 1;
+  for(int i=0; i<47; i++) {
+    display.drawRect(x, 61, 2, 2, YELLOW);
+    x += 2;
+    delay(2553);
+  }
   Serial.println("GO!");
   readCO2();
   readCO2();
@@ -85,11 +94,11 @@ void loop() {
 
 void drawLogo(void) {
   display.fillScreen(BLACK);
-  display.drawBitmap(16, 5, mops1, 64, 54, BLACK);
-  display.drawBitmap(16, 5, mops4, 64, 54, PINK);
-  display.drawBitmap(16, 5, mops5, 64, 54, WHITE);
-  display.drawBitmap(16, 5, mops2, 64, 54, BROWN);
-  display.drawBitmap(16, 5, mops3, 64, 54, YELLOW);
+  display.drawBitmap(16, 4, mops1, 64, 54, BLACK);
+  display.drawBitmap(16, 4, mops4, 64, 54, PINK);
+  display.drawBitmap(16, 4, mops5, 64, 54, WHITE);
+  display.drawBitmap(16, 4, mops2, 64, 54, BROWN);
+  display.drawBitmap(16, 4, mops3, 64, 54, YELLOW);
 }
 
 void drawStatic(void) {
