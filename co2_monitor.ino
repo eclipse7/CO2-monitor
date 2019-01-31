@@ -73,9 +73,13 @@ void setup() {
   digitalWrite(A5, HIGH);
 
   pinMode(A4, INPUT_PULLUP);
+
+  display.begin(); // инициализация дисплея
+  //  drawLogoMops();
+  drawLogoPica();
+  // loading bar
+  display.drawRect(0, 60, 96, 4, YELLOW);
 }
-
-
 
 int status_w = STATUS_WORK;
 int statusMain = MAIN_INIT;
@@ -100,12 +104,11 @@ void loop() {
       else {
         switch (statusMain) {
           case MAIN_INIT:
-            display.begin(); // инициализация дисплея
-            //  drawLogoMops();
-            drawLogoPica();
-            // loading bar
-            display.drawRect(0, 60, 96, 4, YELLOW);
 
+
+
+            digitalWrite(co2_power, LOW);
+            delay(500);
             co2Serial.begin(9600);
             delay(500);
             co2Serial.write(max5k, 9);
@@ -167,7 +170,7 @@ void loop() {
 
     case STATUS_WORK_PRESS_KEY:
       if (!digitalRead(button)) {
-        if ((millis() - buttonTimer) > 500) {
+        if ((millis() - buttonTimer) > 250) {
           // do long press
           status_w = STATUS_PW_OFF;
         }
@@ -186,19 +189,19 @@ void loop() {
       break;
 
     case STATUS_PW_OFF:
-      while (!digitalRead(button)) delay(10);
       Serial.print("poweroff");
-
-      statusMain = MAIN_INIT;
-      logo = 0;
+      display.fillScreen(BLACK);
       digitalWrite(red_led, LOW);
       digitalWrite(green_led, LOW);
       digitalWrite(co2_power, HIGH);
-      digitalWrite(A5, LOW);
-      display.fillScreen(BLACK);
+      statusMain = MAIN_INIT;
+      logo = 0;
+
+      while (!digitalRead(button)) delay(10);
 
       // sleep attach interrupt
       while (digitalRead(button)) delay(10);
+
       Serial.print("poweron");
       buttonTimer = millis();
       status_w = STATUS_PW_ON;
@@ -206,13 +209,15 @@ void loop() {
 
     case STATUS_PW_ON:
       if (!digitalRead(button)) {
-        if ((millis() - buttonTimer) > 500) {
+        if ((millis() - buttonTimer) > 150) {
+          //pinMode(A5, OUTPUT);
+          //digitalWrite(A5, HIGH);
+          display.begin(); // инициализация дисплея
+          //  drawLogoMops();
+          drawLogoPica();
+          // loading bar
+          display.drawRect(0, 60, 96, 4, YELLOW);
           while (!digitalRead(button)) delay(10);
-
-          digitalWrite(co2_power, LOW);
-
-          pinMode(A5, OUTPUT);
-          digitalWrite(A5, HIGH);
 
           status_w = STATUS_WORK;
         }
@@ -400,15 +405,15 @@ int readCO2() {
   memset(response, 0, 9);
   co2Serial.readBytes(response, 9);
 
-    // print response
-    Serial.println(" ");
-    Serial.println("response");
-    for (int i = 0; i < 9; i++) {
-      int r = (int) response[i];
-      Serial.print(r);
-      Serial.print(" ");
-    }
-    Serial.println(" ");
+  // print response
+  Serial.println(" ");
+  Serial.println("response");
+  for (int i = 0; i < 9; i++) {
+    int r = (int) response[i];
+    Serial.print(r);
+    Serial.print(" ");
+  }
+  Serial.println(" ");
 
   if (response[0] != 0xFF) {
     Serial.print("\n\rWrong starting byte from co2 sensor!");
