@@ -3,7 +3,7 @@
 #include <Adafruit_SSD1331.h>
 #include <SPI.h>
 #include "images.h"
-
+#include "LowPower.h"
 #define MH_Z19_RX 6
 #define MH_Z19_TX 5
 #define sclk 13
@@ -65,12 +65,12 @@ void setup() {
   pinMode(green_led, OUTPUT);
   pinMode(co2_power, OUTPUT);
   pinMode(2, INPUT_PULLUP);
-  pinMode(A5, OUTPUT);
+  //  pinMode(A5, OUTPUT);
 
   digitalWrite(red_led, LOW);
   digitalWrite(green_led, HIGH);
   digitalWrite(co2_power, LOW);
-  digitalWrite(A5, HIGH);
+  //  digitalWrite(A5, HIGH);
 
   pinMode(A4, INPUT_PULLUP);
 
@@ -105,8 +105,6 @@ void loop() {
         switch (statusMain) {
           case MAIN_INIT:
 
-
-
             digitalWrite(co2_power, LOW);
             delay(500);
             co2Serial.begin(9600);
@@ -132,7 +130,7 @@ void loop() {
               display.drawRect(1, 61, barX, 2, YELLOW);
               buttonPress = 0;
             }
-            if ((millis() - heatingTimer) > 2553) {
+            if ((millis() - heatingTimer) >= 2553) {
               heatingTimer = millis();
               display.drawRect(barX, 61, 2, 2, YELLOW);
               barX += 2;
@@ -151,12 +149,14 @@ void loop() {
           case MAIN_WORK:
 
             // main
-            if ((millis() - updateTimer) > 5000) {
+            if ((millis() - updateTimer) >= 5000) {
               readAndUpdate();
               updateTimer = millis();
             }
-            if ((millis() - checkBatTimer) > 1000) {
+            if ((millis() - checkBatTimer) >= 1000) {
+              pinMode(A4, INPUT_PULLUP);
               checkBatAndCharge();
+              pinMode(A4, INPUT);
               if (red_blink) {
                 digitalWrite(red_led, !digitalRead(red_led));
               }
@@ -170,13 +170,13 @@ void loop() {
 
     case STATUS_WORK_PRESS_KEY:
       if (!digitalRead(button)) {
-        if ((millis() - buttonTimer) > 250) {
+        if ((millis() - buttonTimer) >= 250) {
           // do long press
           status_w = STATUS_PW_OFF;
         }
       }
       else {
-        if ((millis() - buttonTimer) > 30) {
+        if ((millis() - buttonTimer) >= 30) {
           // do short press
           buttonPress = 1;
           status_w = STATUS_WORK;
@@ -189,27 +189,40 @@ void loop() {
       break;
 
     case STATUS_PW_OFF:
-      Serial.print("poweroff");
+      Serial.println("poweroff");
       display.fillScreen(BLACK);
       digitalWrite(red_led, LOW);
       digitalWrite(green_led, LOW);
       digitalWrite(co2_power, HIGH);
+
+      digitalWrite(sclk, LOW);
+      digitalWrite(mosi, LOW);
+      digitalWrite(rst, LOW);
+      digitalWrite(dc, LOW);
+      digitalWrite(cs, LOW);
+      
+      digitalWrite(MH_Z19_RX, LOW);
+      digitalWrite(MH_Z19_TX, LOW);
+
       statusMain = MAIN_INIT;
       logo = 0;
-
       while (!digitalRead(button)) delay(10);
 
-      // sleep attach interrupt
-      while (digitalRead(button)) delay(10);
+      Serial.println("Going to sleep");
+      delay(100);
+      attachInterrupt(0, wakeUp, LOW);
+      LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
+      detachInterrupt(0);
 
-      Serial.print("poweron");
+      Serial.println("Wake up");
       buttonTimer = millis();
       status_w = STATUS_PW_ON;
       break;
 
     case STATUS_PW_ON:
       if (!digitalRead(button)) {
-        if ((millis() - buttonTimer) > 150) {
+        if ((millis() - buttonTimer) >= 200) {
+          Serial.println("poweron");
           //pinMode(A5, OUTPUT);
           //digitalWrite(A5, HIGH);
           display.begin(); // инициализация дисплея
@@ -229,6 +242,10 @@ void loop() {
       break;
   }
   delay(20);
+}
+
+void wakeUp() {
+  // handler for interrupt
 }
 
 void readAndUpdate() {
