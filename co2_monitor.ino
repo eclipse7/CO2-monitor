@@ -40,6 +40,11 @@
 #define MAIN_HEATING 1
 #define MAIN_WORK 2
 
+#define LED_OFF 0
+#define LED_GREEN 1
+#define LED_YELLOW 2
+#define LED_RED 3
+
 // command to ask for data
 byte askco2[9] = {0xFF, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79};
 byte max2k[9] = {0xFF, 0x01, 0x99, 0x00, 0x00, 0x00, 0x07, 0xD0, 0x8F};
@@ -67,8 +72,8 @@ void setup() {
   pinMode(2, INPUT_PULLUP);
   //  pinMode(A5, OUTPUT);
 
-  digitalWrite(red_led, LOW);
-  digitalWrite(green_led, HIGH);
+  led(LED_GREEN);
+
   digitalWrite(co2_power, LOW);
   //  digitalWrite(A5, HIGH);
 
@@ -93,6 +98,8 @@ unsigned long buttonTimer = 0;
 unsigned long updateTimer = 10000;
 unsigned long checkBatTimer = 10000;
 boolean red_blink = 0;
+boolean red_blink_state = 0;
+boolean showDisplay = 1;
 
 void loop() {
   switch (status_w) {
@@ -130,7 +137,7 @@ void loop() {
               display.drawRect(1, 61, barX, 2, YELLOW);
               buttonPress = 0;
             }
-            if ((millis() - heatingTimer) >= 2553) {
+            if ((millis() - heatingTimer) >= 2700) {
               heatingTimer = millis();
               display.drawRect(barX, 61, 2, 2, YELLOW);
               barX += 2;
@@ -147,18 +154,39 @@ void loop() {
             break;
 
           case MAIN_WORK:
+            // on/off display
+            if (buttonPress)  {
+              if (showDisplay) {
+                display.fillScreen(BLACK);
+                showDisplay = 0;
+              }
+              else {
+                drawStatic();
+                updateTimer = 0;
+                checkBatTimer = 0;
+                showDisplay = 1;
+              }
+              buttonPress = 0;
+            }
 
-            // main
             if ((millis() - updateTimer) >= 5000) {
               readAndUpdate();
               updateTimer = millis();
             }
+
             if ((millis() - checkBatTimer) >= 1000) {
-              pinMode(A4, INPUT_PULLUP);
-              checkBatAndCharge();
-              pinMode(A4, INPUT);
+              if (showDisplay) {
+                checkBatAndCharge();
+              }
               if (red_blink) {
-                digitalWrite(red_led, !digitalRead(red_led));
+                if (red_blink_state) {
+                  led(LED_OFF);
+                  red_blink_state = 0;
+                }
+                else {
+                  led(LED_RED);
+                  red_blink_state = 1;
+                }
               }
               checkBatTimer = millis();
             }
@@ -191,6 +219,7 @@ void loop() {
     case STATUS_PW_OFF:
       Serial.println("poweroff");
       display.fillScreen(BLACK);
+      led(LED_OFF);
       digitalWrite(red_led, LOW);
       digitalWrite(green_led, LOW);
       digitalWrite(co2_power, HIGH);
@@ -200,18 +229,19 @@ void loop() {
       digitalWrite(rst, LOW);
       digitalWrite(dc, LOW);
       digitalWrite(cs, LOW);
-      
+
       digitalWrite(MH_Z19_RX, LOW);
       digitalWrite(MH_Z19_TX, LOW);
 
       statusMain = MAIN_INIT;
       logo = 0;
+      showDisplay = 1;
       while (!digitalRead(button)) delay(10);
 
       Serial.println("Going to sleep");
       delay(100);
       attachInterrupt(0, wakeUp, LOW);
-      LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
+      LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);  // sleep
       detachInterrupt(0);
 
       Serial.println("Wake up");
@@ -248,26 +278,46 @@ void wakeUp() {
   // handler for interrupt
 }
 
+void led(int color) {
+  switch (color) {
+    case LED_OFF:
+      analogWrite(red_led, 0);
+      analogWrite(green_led, 0);
+      break;
+
+    case LED_GREEN:
+      analogWrite(red_led, 0);
+      analogWrite(green_led, 255);
+      break;
+    case LED_YELLOW:
+      analogWrite(red_led, 100);
+      analogWrite(green_led, 255);
+      break;
+
+    case LED_RED:
+      analogWrite(red_led, 255);
+      analogWrite(green_led, 0);
+      break;
+  }
+}
+
 void readAndUpdate() {
   int ppm = readCO2();
-  reDrawValue(ppm);
-  reDrawBar(ppm);
-
+  if (showDisplay) {
+    reDrawValue(ppm);
+    reDrawBar(ppm);
+  }
   red_blink = 0;
   if (ppm < 800) {
-    digitalWrite(red_led, LOW);
-    digitalWrite(green_led, HIGH);
+    led(LED_GREEN);
   } else {
     if (ppm < 1200) {
-      digitalWrite(red_led, HIGH);
-      digitalWrite(green_led, HIGH);
+      led(LED_YELLOW);
     } else {
       if (ppm < 2000) {
-        digitalWrite(red_led, HIGH);
-        digitalWrite(green_led, LOW);
+        led(LED_RED);
       }
       else {
-        digitalWrite(green_led, LOW);
         red_blink = 1;
       }
     }
@@ -279,7 +329,9 @@ void readAndUpdate() {
 }
 
 void checkBatAndCharge() {
+  pinMode(A4, INPUT_PULLUP);
   int val = analogRead(A4);
+  pinMode(A4, INPUT);
   if (val < 200) drawChargeIcon(1); // val < 181 - charging,  val = 393 - no charging, val > 450 - charging stop
   else drawChargeIcon(0);
 
