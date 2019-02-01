@@ -199,7 +199,7 @@ void loop() {
 
     case STATUS_WORK_PRESS_KEY:
       if (!digitalRead(button)) {
-        if ((millis() - buttonTimer) >= 250) {
+        if ((millis() - buttonTimer) >= 275) {
           // do long press
           status_w = STATUS_PW_OFF;
         }
@@ -252,7 +252,7 @@ void loop() {
 
     case STATUS_PW_ON:
       if (!digitalRead(button)) {
-        if ((millis() - buttonTimer) >= 200) {
+        if ((millis() - buttonTimer) >= 225) {
           Serial.println("poweron");
           //pinMode(A5, OUTPUT);
           //digitalWrite(A5, HIGH);
