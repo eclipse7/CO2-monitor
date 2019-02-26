@@ -63,6 +63,8 @@ int prev_digits = 0;
 
 volatile int button_status = 0;
 volatile unsigned long time_hold = 0;
+int status_w = STATUS_WORK;
+int statusMain = MAIN_INIT;
 
 void setup() {
   Serial.begin(115200);
@@ -71,24 +73,24 @@ void setup() {
   pinMode(green_led, OUTPUT);
   pinMode(co2_power, OUTPUT);
   pinMode(2, INPUT_PULLUP);
-  //  pinMode(A5, OUTPUT);
 
-  led(LED_GREEN);
+  led(LED_OFF);
+  digitalWrite(co2_power, HIGH);
 
-  digitalWrite(co2_power, LOW);
-  //  digitalWrite(A5, HIGH);
+  if (check_bat()) {
+    status_w = STATUS_PW_OFF;
+  }
+  else {
+    led(LED_GREEN);
+    pinMode(A4, INPUT_PULLUP);
 
-  pinMode(A4, INPUT_PULLUP);
-
-  display.begin(); // инициализация дисплея
-  //  drawLogoMops();
-  drawLogoPica();
-  // loading bar
-  display.drawRect(0, 60, 96, 4, YELLOW);
+    display.begin(); // инициализация дисплея
+    //  drawLogoMops();
+    drawLogoPica();
+    // loading bar
+    display.drawRect(0, 60, 96, 4, YELLOW);
+  }
 }
-
-int status_w = STATUS_WORK;
-int statusMain = MAIN_INIT;
 
 int logo = 0;
 boolean buttonPress = 0;
@@ -110,10 +112,13 @@ void loop() {
         buttonTimer = millis();
       }
       else {
+        if (check_bat()) {
+          status_w = STATUS_PW_OFF;
+        }
         switch (statusMain) {
           case MAIN_INIT:
 
-            digitalWrite(co2_power, LOW);
+            digitalWrite(co2_power, LOW);  // co2 on
             delay(500);
             co2Serial.begin(9600);
             delay(500);
@@ -277,6 +282,13 @@ void loop() {
 
 void wakeUp() {
   // handler for interrupt
+}
+
+int check_bat() {
+  if (readVcc() < 3100)
+    return 1;
+  else
+    return 0;
 }
 
 void led(int color) {
